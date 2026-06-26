@@ -103,17 +103,20 @@ public class BindingReflectionUtils {
 
   public static IType findElementType(IJavaProject javaProject, String elementTypeName, boolean requireTypeInProject, TypeCache cache) throws JavaModelException {
     // Search the current project for the given element type name
+    ValidationProfiler.count(ValidationProfiler.FIND_ELEMENT_TYPE);
     String typeName = cache.getApiCache(javaProject).getElementTypeNamed(elementTypeName);
     IType type = null;
     if (typeName != null) {
+      ValidationProfiler.count(ValidationProfiler.FIND_ELEMENT_TYPE_HIT);
       type = javaProject.findType(typeName);
     }
     else {
-      //long a = System.currentTimeMillis();
+      long profileStart = ValidationProfiler.now();
     	NullProgressMonitor progressMonitor = new NullProgressMonitor();
       TypeNameCollector typeNameCollector = new TypeNameCollector(javaProject, requireTypeInProject);
       //System.out.println("BindingReflectionUtils.findElementType: start " + System.currentTimeMillis());
       BindingReflectionUtils.findMatchingElementClassNames(elementTypeName, SearchPattern.R_EXACT_MATCH, typeNameCollector, progressMonitor);
+      ValidationProfiler.add(ValidationProfiler.FIND_ELEMENT_TYPE_SEARCH, profileStart);
       //System.out.println("BindingReflectionUtils.findElementType: " + (System.currentTimeMillis() - a));
       if (typeNameCollector.isExactMatch()) {
         String matchingElementClassName = typeNameCollector.firstTypeName();
@@ -192,6 +195,16 @@ public class BindingReflectionUtils {
   }
 
   public static List<BindingValueKey> getBindingKeys(IJavaProject javaProject, IType type, String nameStartingWith, boolean requireExactNameMatch, int accessorsOrMutators, boolean allowInheritanceDuplicates, TypeCache cache) throws JavaModelException {
+    long profileStart = ValidationProfiler.now();
+    try {
+    return doGetBindingKeys(javaProject, type, nameStartingWith, requireExactNameMatch, accessorsOrMutators, allowInheritanceDuplicates, cache);
+    }
+    finally {
+      ValidationProfiler.add(ValidationProfiler.GET_BINDING_KEYS, profileStart);
+    }
+  }
+
+  private static List<BindingValueKey> doGetBindingKeys(IJavaProject javaProject, IType type, String nameStartingWith, boolean requireExactNameMatch, int accessorsOrMutators, boolean allowInheritanceDuplicates, TypeCache cache) throws JavaModelException {
     List<BindingValueKey> bindingKeys = new LinkedList<BindingValueKey>();
 //    if (_requireExactNameMatch && BindingReflectionUtils.isBooleanValue(_nameStartingWith)) {
 //      return bindingKeys;

@@ -65,6 +65,7 @@ import org.objectstyle.wolips.bindings.api.IApiBinding;
 import org.objectstyle.wolips.bindings.api.Wo;
 import org.objectstyle.wolips.bindings.preferences.PreferenceConstants;
 import org.objectstyle.wolips.bindings.utils.BindingReflectionUtils;
+import org.objectstyle.wolips.bindings.utils.ValidationProfiler;
 
 /**
  * @author mschrag
@@ -206,6 +207,8 @@ public abstract class AbstractWodBinding implements IWodBinding {
   }
 
   public void fillInBindingProblems(IWodElement element, IApiBinding apiBinding, IJavaProject javaProject, IType javaFileType, List<WodProblem> problems, TypeCache cache, HtmlElementCache htmlCache) throws JavaModelException {
+    ValidationProfiler.count(ValidationProfiler.BINDING);
+    ValidationProfiler.count(ValidationProfiler.PREFERENCE_READ, 6);
   	String missingCollectionSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.MISSING_COLLECTION_SEVERITY_KEY);
   	String missingComponentSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.MISSING_COMPONENT_SEVERITY_KEY);
   	String missingNSKVCSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.MISSING_NSKVC_SEVERITY_KEY);
@@ -363,6 +366,7 @@ public abstract class AbstractWodBinding implements IWodBinding {
             // problems.add(new WodBindingValueProblem(bindingName, "The key '" + getName() + "' cannot be a constant value.", getValuePosition(), lineNumber, false));
           }
         }
+        ValidationProfiler.count(ValidationProfiler.PREFERENCE_READ);
         String deprecationSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.DEPRECATED_BINDING_SEVERITY_KEY);
         if (!PreferenceConstants.IGNORE.equals(deprecationSeverity)) {
           BindingValueKeyPath bindingValueKeyPath = new BindingValueKeyPath(bindingValue, javaFileType, javaProject, cache);
@@ -376,6 +380,7 @@ public abstract class AbstractWodBinding implements IWodBinding {
           }
         }
 
+        ValidationProfiler.count(ValidationProfiler.PREFERENCE_READ);
         String invalidOGNLSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.INVALID_OGNL_SEVERITY_KEY);
         if (!PreferenceConstants.IGNORE.equals(invalidOGNLSeverity) && isOGNL()) {
           boolean inQuotes = bindingValue.startsWith("\"");

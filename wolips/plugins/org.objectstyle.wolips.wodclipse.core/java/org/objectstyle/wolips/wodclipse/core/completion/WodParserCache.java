@@ -23,6 +23,7 @@ import org.objectstyle.wolips.bindings.api.ApiUtils;
 import org.objectstyle.wolips.bindings.api.Wo;
 import org.objectstyle.wolips.bindings.preferences.PreferenceConstants;
 import org.objectstyle.wolips.bindings.utils.BindingReflectionUtils;
+import org.objectstyle.wolips.bindings.utils.ValidationProfiler;
 import org.objectstyle.wolips.bindings.wod.BindingValidationRule;
 import org.objectstyle.wolips.bindings.wod.ITypeOwner;
 import org.objectstyle.wolips.bindings.wod.TagShortcut;
@@ -384,9 +385,16 @@ public class WodParserCache implements ITypeOwner {
       _wooEntry.deleteProblems();
 
       if (Activator.getDefault().getPreferenceStore().getBoolean(PreferenceConstants.VALIDATE_TEMPLATES_KEY)) {
-        _htmlEntry.validate();
-        _wodEntry.validate();
-        _wooEntry.validate();
+        String profileLabel = _woFolder == null ? String.valueOf(_componentType) : _woFolder.getName();
+        long profileStart = ValidationProfiler.beginPass(profileLabel);
+        try {
+          _htmlEntry.validate();
+          _wodEntry.validate();
+          _wooEntry.validate();
+        }
+        finally {
+          ValidationProfiler.endPass(profileLabel, profileStart);
+        }
       }
       //System.out.println("WodParserCache.validate: b " + _woFolder + " (" + Thread.currentThread() + ")");
     }

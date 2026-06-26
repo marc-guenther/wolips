@@ -11,6 +11,7 @@ import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.objectstyle.wolips.bindings.utils.BindingReflectionUtils;
+import org.objectstyle.wolips.bindings.utils.ValidationProfiler;
 import org.objectstyle.wolips.locate.LocateException;
 
 public class BindingValueKeyPath {
@@ -61,6 +62,7 @@ public class BindingValueKeyPath {
   }
 
   public BindingValueKeyPath(String keyPath, IType contextType, IJavaProject javaProject, TypeCache cache) throws JavaModelException {
+    long profileStart = ValidationProfiler.now();
     _cache = cache;
     _javaProject = javaProject;
     _contextType = contextType;
@@ -220,6 +222,7 @@ public class BindingValueKeyPath {
       //_valid = _bindingKeyNames.length == 1;
       //}
     }
+    ValidationProfiler.add(ValidationProfiler.KEYPATH_CONSTRUCT, profileStart);
   }
 
   public String getOriginalKeyPath() {

@@ -17,6 +17,7 @@ import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.internal.corext.util.JavaModelUtil;
 import org.objectstyle.wolips.bindings.api.ApiCache;
 import org.objectstyle.wolips.bindings.utils.BindingReflectionUtils;
+import org.objectstyle.wolips.bindings.utils.ValidationProfiler;
 import org.objectstyle.wolips.core.resources.types.LimitedLRUCache;
 import org.objectstyle.wolips.core.resources.types.SuperTypeHierarchyCache;
 
@@ -166,20 +167,24 @@ public class TypeCache {
       synchronized (_bindingValueAccessorKeys) {
         List<BindingValueKey> bindingValueAccessorKeys = _bindingValueAccessorKeys.get(name);
         //System.out.println("TypeCacheEntry.getBindingValueAccessorKeys: " + name + ": " + bindingValueAccessorKeys);
+        ValidationProfiler.count(ValidationProfiler.ACCESSOR_KEYS);
         if (bindingValueAccessorKeys == null) {
+          ValidationProfiler.count(ValidationProfiler.ACCESSOR_KEYS_MISS);
           //System.out.println("TypeCache.getBindingValueAccessorKeys: MISS " + type.getElementName() + ": " + name);
           bindingValueAccessorKeys = getBindingKeys(javaProject, name, BindingReflectionUtils.ACCESSORS_OR_VOID);
           // MS: Don't cache this for now -- I don't know how many end up in here and how long they
           // hang around, but I think the answer is "a lot" and "for a long time".  However, it's a huge performance win.
-          
+
           // Q: Don't cache results from types with generic type parameters
           if (_type.getTypeParameters().length == 0 || bindingValueAccessorKeys.size() == 0) {
             _bindingValueAccessorKeys.put(name, bindingValueAccessorKeys);
           } else {
+            ValidationProfiler.count(ValidationProfiler.ACCESSOR_KEYS_GENERIC_SKIP);
             //System.out.println("TypeCacheEntry.getBindingValueMutatorKeys: not caching " + _type.getElementName() + ": " + name);
           }
         }
         else {
+          ValidationProfiler.count(ValidationProfiler.ACCESSOR_KEYS_HIT);
           //System.out.println("TypeCache.getBindingValueAccessorKeys: HIT  " + _type.getElementName() + ": " + name);
         }
         return bindingValueAccessorKeys;
@@ -189,7 +194,9 @@ public class TypeCache {
     public List<BindingValueKey> getBindingValueMutatorKeys(IJavaProject javaProject, String name) throws JavaModelException {
       synchronized (_bindingValueMutatorKeys) {
         List<BindingValueKey> bindingValueMutatorKeys = _bindingValueMutatorKeys.get(name);
+        ValidationProfiler.count(ValidationProfiler.MUTATOR_KEYS);
         if (bindingValueMutatorKeys == null) {
+          ValidationProfiler.count(ValidationProfiler.MUTATOR_KEYS_MISS);
           //System.out.println("TypeCache.getBindingValueMutatorKeys: MISS " + type.getElementName() + ": " + name);
           bindingValueMutatorKeys = getBindingKeys(javaProject, name, BindingReflectionUtils.MUTATORS_ONLY);
           // MS: Don't cache this for now -- I don't know how many end up in here and how long they
@@ -199,10 +206,12 @@ public class TypeCache {
           if (_type.getTypeParameters().length == 0 && bindingValueMutatorKeys.size() > 0) {
             _bindingValueMutatorKeys.put(name, bindingValueMutatorKeys);
           } else {
+            ValidationProfiler.count(ValidationProfiler.MUTATOR_KEYS_GENERIC_SKIP);
             //System.out.println("TypeCacheEntry.getBindingValueMutatorKeys: not caching " + _type.getElementName() + ": " + name);
           }
         }
         else {
+          ValidationProfiler.count(ValidationProfiler.MUTATOR_KEYS_HIT);
           //System.out.println("TypeCache.getBindingValueMutatorKeys: HIT  " + _type.getElementName() + ": " + name);
         }
         return bindingValueMutatorKeys;
@@ -344,17 +353,24 @@ public class TypeCache {
         type = null;
       }
       else {
+        ValidationProfiler.count(ValidationProfiler.GET_TYPE_FOR_NAME);
         synchronized (_nextTypeCache) {
           type = _nextTypeCache.get(typeName);
         }
+        if (type != null) {
+          ValidationProfiler.count(ValidationProfiler.GET_TYPE_FOR_NAME_HIT);
+        }
         if (type == null) {
+          ValidationProfiler.count(ValidationProfiler.GET_TYPE_FOR_NAME_MISS);
           //long t = System.currentTimeMillis();
           // MS: This call right here is the DEVIL.  This is BY FAR where the
           // majority of time is spent during component validation.  It's also
-          // unfortunately completely necessary, but caching should focus on 
+          // unfortunately completely necessary, but caching should focus on
           // this in the future.
           //String resolvedNextTypeName = JavaModelUtil.getResolvedTypeName(typeName, _type);
+          long profileStart = ValidationProfiler.now();
         	type = resolveType(typeName, _type);
+          ValidationProfiler.add(ValidationProfiler.RESOLVE_TYPE, profileStart);
           if (type == null) {
         	if (BindingReflectionUtils.isPrimitive(typeName)) {
         	  // ignore primitives if we get this far

@@ -69,6 +69,7 @@ import org.objectstyle.wolips.bindings.api.Validation;
 import org.objectstyle.wolips.bindings.api.Wo;
 import org.objectstyle.wolips.bindings.preferences.PreferenceConstants;
 import org.objectstyle.wolips.bindings.utils.BindingReflectionUtils;
+import org.objectstyle.wolips.bindings.utils.ValidationProfiler;
 
 /**
  * @author mschrag
@@ -264,16 +265,19 @@ public abstract class AbstractWodElement implements IWodElement, Comparable<IWod
   public abstract int getLineNumber();
 
   public void fillInProblems(IJavaProject javaProject, IType javaFileType, boolean checkBindingValues, List<WodProblem> problems, TypeCache typeCache, HtmlElementCache htmlCache) throws CoreException {
+    ValidationProfiler.count(ValidationProfiler.ELEMENT);
     String elementTypeName = getElementType();
 
     String elementName = getElementName();
     int lineNumber = getLineNumber();
+    ValidationProfiler.count(ValidationProfiler.PREFERENCE_READ, 2);
   	String wodMissingComponentSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.WOD_MISSING_COMPONENT_SEVERITY_KEY);
   	String unusedWodElementSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.UNUSED_WOD_ELEMENT_SEVERITY_KEY);
     if (!PreferenceConstants.IGNORE.equals(unusedWodElementSeverity) && !_inline && !htmlCache.containsElementNamed(elementName)) {
       problems.add(new WodElementProblem(this, "There is no element named '" + elementName + "' in your component HTML file", getElementNamePosition(), lineNumber, PreferenceConstants.WARNING.equals(unusedWodElementSeverity)));
     }
     
+    ValidationProfiler.count(ValidationProfiler.PREFERENCE_READ);
     String deprecationSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.DEPRECATED_BINDING_SEVERITY_KEY);
     if (!PreferenceConstants.IGNORE.equals(deprecationSeverity)) {
       IType elementType = BindingReflectionUtils.findElementType(javaProject, elementTypeName, false, typeCache);
@@ -289,6 +293,7 @@ public abstract class AbstractWodElement implements IWodElement, Comparable<IWod
 	      problems.add(new WodElementProblem(this, "The class for '" + elementTypeName + "' is either missing or does not extend WOElement.", getElementTypePosition(), lineNumber, PreferenceConstants.WARNING.equals(wodMissingComponentSeverity)));
 	    }
 	    else {
+	    	ValidationProfiler.count(ValidationProfiler.PREFERENCE_READ);
 	    	String wodApiProblemSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.WOD_API_PROBLEMS_SEVERITY_KEY);
 	    	if (!PreferenceConstants.IGNORE.equals(wodApiProblemSeverity)) {
 		      try {
