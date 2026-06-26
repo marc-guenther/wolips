@@ -1,9 +1,11 @@
 package org.objectstyle.wolips.bindings.wod;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -107,6 +109,20 @@ public class TypeCache {
     synchronized (_typeCacheEntries) {
       //System.out.println("TypeCache.clearCacheForType: clearing cache for " + declaringType.getFullyQualifiedName());
       _typeCacheEntries.remove(declaringType);
+      // Cached binding-key lists aggregate inherited members, so a change to this
+      // type also invalidates the cached entries of its subtypes. We clear them by
+      // matching against the supertype names each entry captured when it was built,
+      // so no type hierarchy has to be recomputed here.
+      String changedTypeName = declaringType.getFullyQualifiedName();
+      List<IType> subtypesToClear = new LinkedList<IType>();
+      for (Map.Entry<IType, TypeCacheEntry> cacheEntry : _typeCacheEntries.entrySet()) {
+        if (cacheEntry.getValue().inheritsFrom(changedTypeName)) {
+          subtypesToClear.add(cacheEntry.getKey());
+        }
+      }
+      for (IType subtype : subtypesToClear) {
+        _typeCacheEntries.remove(subtype);
+      }
     }
   }
 
@@ -163,6 +179,11 @@ public class TypeCache {
     private Map<String, List<BindingValueKey>> _bindingValueAccessorKeys;
 
     private Map<String, List<BindingValueKey>> _bindingValueMutatorKeys;
+
+    /** Fully-qualified names of this type and its supertypes, captured when the
+     * supertype chain is first resolved, so targeted invalidation can tell whether
+     * this entry's cached binding keys depend on a changed type. */
+    private Set<String> _supertypeNames;
 
     public TypeCacheEntry(IType type) throws JavaModelException {
       _type = type;
@@ -414,7 +435,19 @@ public class TypeCache {
       for (IType type : typeHierarchy.getAllSupertypes(_type)) {
         types.add(type);
       }
+      if (_supertypeNames == null) {
+        Set<String> supertypeNames = new HashSet<String>();
+        for (IType type : types) {
+          supertypeNames.add(type.getFullyQualifiedName());
+        }
+        _supertypeNames = supertypeNames;
+      }
       return types;
+    }
+
+    /** Whether this entry's type is, or inherits from, the named type. */
+    public boolean inheritsFrom(String typeName) {
+      return _supertypeNames != null && _supertypeNames.contains(typeName);
     }
 
     public List<IType> getSubtypesInProject(IJavaProject project) throws JavaModelException {

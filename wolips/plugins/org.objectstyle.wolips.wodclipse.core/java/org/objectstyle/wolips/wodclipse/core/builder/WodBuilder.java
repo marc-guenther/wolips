@@ -158,11 +158,13 @@ public class WodBuilder extends AbstractFullAndIncrementalBuilder {
 				if (_buildKind == IncrementalProjectBuilder.INCREMENTAL_BUILD || _buildKind == IncrementalProjectBuilder.AUTO_BUILD) {
 					ICompilationUnit compilationUnit = JavaCore.createCompilationUnitFrom((IFile) resource);
 					if (compilationUnit != null) {
-						// A changed Java type can affect any component whose key paths pass through
-						// it -- including through inheritance, since cached binding-key lists aggregate
-						// inherited members -- so invalidate the project's cached type info once for
-						// this build before revalidating anything.
-						clearTypeCacheOnce(resource.getProject(), buildCache);
+						IType[] changedTypes = compilationUnit.getAllTypes();
+						// Invalidate the cached type info for the changed types (and their cached
+						// subtypes, whose binding-key lists aggregate inherited members) before
+						// revalidating, leaving unrelated types warm.
+						for (IType changedType : changedTypes) {
+							WodParserCache.getTypeCache().clearCacheForType(changedType);
+						}
 						Set<String> revalidatedComponents = revalidatedComponents(buildCache);
 
 						// 1. If the changed class is itself a component, revalidate its own template.
@@ -185,7 +187,7 @@ public class WodBuilder extends AbstractFullAndIncrementalBuilder {
 						// 2. Revalidate every other component whose key paths resolve through a type
 						// declared in this file (i.e. reached via a binding key path), not just the
 						// component whose own class changed.
-						for (IType changedType : compilationUnit.getAllTypes()) {
+						for (IType changedType : changedTypes) {
 							for (String componentKey : ComponentTypeDependencies.componentsDependentOn(changedType.getFullyQualifiedName())) {
 								if (revalidatedComponents.add(componentKey)) {
 									revalidateComponent(componentKey, progressMonitor);
@@ -198,14 +200,6 @@ public class WodBuilder extends AbstractFullAndIncrementalBuilder {
 			catch (Throwable t) {
 				Activator.getDefault().log(t);
 			}
-		}
-	}
-
-	@SuppressWarnings("unchecked")
-	protected void clearTypeCacheOnce(IProject project, Map buildCache) {
-		if (buildCache.get("typeCacheCleared") == null) {
-			WodParserCache.getTypeCache().clearCacheForProject(project);
-			buildCache.put("typeCacheCleared", Boolean.TRUE);
 		}
 	}
 

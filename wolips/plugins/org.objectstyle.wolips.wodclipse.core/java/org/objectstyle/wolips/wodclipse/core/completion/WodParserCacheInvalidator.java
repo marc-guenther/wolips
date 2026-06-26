@@ -14,7 +14,9 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.swt.widgets.Display;
 import org.objectstyle.wolips.bindings.Activator;
 import org.objectstyle.wolips.bindings.wod.ComponentTypeDependencies;
@@ -51,12 +53,19 @@ public class WodParserCacheInvalidator implements IResourceChangeListener, IReso
         else if (delta.getKind() == IResourceDelta.CHANGED) {
           IJavaElement javaElement = JavaCore.create(file);
           if (javaElement instanceof ICompilationUnit) {
-            IJavaProject javaProject = javaElement.getJavaProject();
-            if (javaProject != null && javaProject.isOnClasspath(javaElement)) {
-              // Cached binding-key lists aggregate inherited members, so a change to
-              // one type can invalidate the cached results of all its subtypes; clear
-              // the whole project's type cache rather than just the changed type.
-              WodParserCache.getTypeCache().clearCacheForProject(javaProject.getProject());
+            try {
+              IJavaProject javaProject = javaElement.getJavaProject();
+              if (javaProject != null && javaProject.isOnClasspath(javaElement)) {
+                // clearCacheForType also clears cached subtypes, whose binding-key
+                // lists aggregate the changed type's inherited members, so unrelated
+                // types stay warm.
+                for (IType type : ((ICompilationUnit) javaElement).getAllTypes()) {
+                  WodParserCache.getTypeCache().clearCacheForType(type);
+                }
+              }
+            }
+            catch (JavaModelException e) {
+              Activator.getDefault().log("Failed to clear caches for " + resource + ".", e);
             }
           }
         }
