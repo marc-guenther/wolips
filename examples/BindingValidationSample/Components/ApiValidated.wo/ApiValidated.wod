@@ -1,0 +1,7 @@
+Label : WOString {
+	value = label;
+}
+
+Value : WOString {
+	value = value;
+}

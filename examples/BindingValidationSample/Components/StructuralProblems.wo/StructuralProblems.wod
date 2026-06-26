@@ -1,0 +1,8 @@
+DuplicateBinding : WOString {
+	value = person.name;
+	value = person.age;
+}
+
+CaretBinding : WOString {
+	value = ^inheritedValue;
+}

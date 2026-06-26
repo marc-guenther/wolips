@@ -1,0 +1,19 @@
+PersonName : WOString {
+	value = personRepository.currentObject.name;
+}
+
+AddressCity : WOString {
+	value = addressRepository.currentObject.city;
+}
+
+DeepGeneric : WOString {
+	value = personRepository.currentObject.bestFriend.name;
+}
+
+GenericCollection : WOString {
+	value = personRepository.allObjects.name;
+}
+
+GenericBadKey : WOString {
+	value = addressRepository.currentObject.bogusAddressKey;
+}

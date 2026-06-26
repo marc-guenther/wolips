@@ -1,0 +1,15 @@
+KvcUnknown : WOString {
+	value = legacyObject.anyDynamicKey;
+}
+
+KvcKnown : WOString {
+	value = legacyObject.title;
+}
+
+ThroughComponentMember : WOString {
+	value = person.relatedComponent.anything;
+}
+
+ThroughComponent : WOString {
+	value = someComponent.anything;
+}

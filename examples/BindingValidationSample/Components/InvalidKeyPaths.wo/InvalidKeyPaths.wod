@@ -1,0 +1,11 @@
+BadLeaf : WOString {
+	value = person.bogus;
+}
+
+BadMidPath : WOString {
+	value = person.address.bogus;
+}
+
+UnknownOnComponent : WOString {
+	value = totallyUnknownKey;
+}

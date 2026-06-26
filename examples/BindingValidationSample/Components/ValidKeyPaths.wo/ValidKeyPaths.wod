@@ -1,0 +1,19 @@
+Street : WOString {
+	value = person.address.street;
+}
+
+City : WOString {
+	value = person.address.city;
+}
+
+BestFriendName : WOString {
+	value = person.bestFriend.name;
+}
+
+Nick : WOTextField {
+	value = person.nickname;
+}
+
+Computed : WOString {
+	value = person.computedValue;
+}

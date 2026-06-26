@@ -1,0 +1,20 @@
+FriendsRepetition : WORepetition {
+	list = person.friends;
+	item = var:aFriend;
+}
+
+FriendName : WOString {
+	value = person.friends.name;
+}
+
+FriendCount : WOString {
+	value = person.friends.@count;
+}
+
+AverageAge : WOString {
+	value = person.friends.@avg;
+}
+
+UnknownOperator : WOString {
+	value = person.friends.@bogusOperator;
+}

@@ -1,0 +1,6 @@
+DeprecatedKey : WOString {
+	value = person.oldName;
+}
+
+DeprecatedElement : DeprecatedComponent {
+}

@@ -1,0 +1,12 @@
+GoodUsage : ApiValidated {
+	value = person.name;
+	label = "Name";
+}
+
+MissingRequired : ApiValidated {
+	label = "Orphan";
+}
+
+FailsValidation : ApiValidated {
+	value = person.name;
+}

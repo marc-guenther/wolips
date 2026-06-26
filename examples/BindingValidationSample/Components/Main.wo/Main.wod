@@ -1,0 +1,23 @@
+Greeting : WOString {
+	value = person.name;
+}
+
+AgeField : WOString {
+	value = person.age;
+}
+
+ActiveFlag : WOConditional {
+	condition = person.active;
+}
+
+LiteralBinding : WOString {
+	value = "a literal string";
+}
+
+NumberBinding : WOString {
+	value = 42;
+}
+
+NullBinding : WOString {
+	value = null;
+}

@@ -1,0 +1,3 @@
+HelperBinding : WOString {
+	value = person.name|uppercaseString;
+}

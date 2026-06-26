@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<wodefinitions>
+	<wo wocomponentcontent="false" class="ApiValidated">
+		<binding name="value" required="YES"/>
+		<binding name="label"/>
+		<binding name="mode"/>
+		<validation message="Provide either 'label' or 'mode'.">
+			<and>
+				<unbound name="label"/>
+				<unbound name="mode"/>
+			</and>
+		</validation>
+	</wo>
+</wodefinitions>

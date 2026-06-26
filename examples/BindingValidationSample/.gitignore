@@ -1,0 +1,7 @@
+# The repo-root .gitignore excludes .classpath (it is generated for the plugin
+# projects). This sample is a hand-authored, importable project, so its
+# .classpath must be tracked. Re-include it here.
+!.classpath
+
+# Build output stays ignored.
+bin/

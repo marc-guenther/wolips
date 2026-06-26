@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html><head><title>Inline Bindings</title></head>
+<body>
+	<wo:WOString value="person.name"/>
+	<wo:WOConditional condition="person.active">
+		<p>active</p>
+	</wo:WOConditional>
+	<wo:WORepetition list="person.friends" item="var:aFriend">
+		<wo:WOString value="aFriend"/>
+	</wo:WORepetition>
+	<wo:WOString value="person.noSuchInlineKey"/>
+</body></html>

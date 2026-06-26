@@ -1,0 +1,11 @@
+OgnlPlain : WOConditional {
+	condition = ~person.age > 18;
+}
+
+OgnlQuoted : WOString {
+	value = "~person.name";
+}
+
+OgnlInvalidKey : WOConditional {
+	condition = ~person.bogusOgnlKey > 0;
+}
