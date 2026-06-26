@@ -25,6 +25,7 @@ import org.objectstyle.wolips.bindings.preferences.PreferenceConstants;
 import org.objectstyle.wolips.bindings.utils.BindingReflectionUtils;
 import org.objectstyle.wolips.bindings.utils.ValidationProfiler;
 import org.objectstyle.wolips.bindings.wod.BindingValidationRule;
+import org.objectstyle.wolips.bindings.wod.ComponentTypeDependencies;
 import org.objectstyle.wolips.bindings.wod.ITypeOwner;
 import org.objectstyle.wolips.bindings.wod.TagShortcut;
 import org.objectstyle.wolips.bindings.wod.TypeCache;
@@ -387,12 +388,17 @@ public class WodParserCache implements ITypeOwner {
       if (Activator.getDefault().getPreferenceStore().getBoolean(PreferenceConstants.VALIDATE_TEMPLATES_KEY)) {
         String profileLabel = _woFolder == null ? String.valueOf(_componentType) : _woFolder.getName();
         long profileStart = ValidationProfiler.beginPass(profileLabel);
+        // Record which Java types this component's key paths resolve through, so a
+        // later change to any of them revalidates this component (not just its own class).
+        String dependencyKey = _woFolder == null ? null : _woFolder.getFullPath().toString();
+        ComponentTypeDependencies.beginRecording();
         try {
           _htmlEntry.validate();
           _wodEntry.validate();
           _wooEntry.validate();
         }
         finally {
+          ComponentTypeDependencies.endRecording(dependencyKey);
           ValidationProfiler.endPass(profileLabel, profileStart);
         }
       }

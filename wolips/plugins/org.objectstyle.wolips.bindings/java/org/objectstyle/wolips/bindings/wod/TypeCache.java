@@ -32,6 +32,7 @@ public class TypeCache {
   }
 
   public TypeCacheEntry getTypeCacheEntry(IType type) throws JavaModelException {
+    ComponentTypeDependencies.recordType(type);
     synchronized (_typeCacheEntries) {
       TypeCacheEntry entry = _typeCacheEntries.get(type);
       if (entry == null) {
@@ -122,7 +123,13 @@ public class TypeCache {
   public List<IType> getSupertypesOf(IType type) throws JavaModelException {
     //System.out.println("TypeCache.getSupertypesOf: " + type.getFullyQualifiedName() + " (hits=" + SuperTypeHierarchyCache.getCacheHits() + ",misses=" + SuperTypeHierarchyCache.getCacheMisses() + ")");
     try {
-      return getTypeCacheEntry(type).getSupertypes();
+      List<IType> supertypes = getTypeCacheEntry(type).getSupertypes();
+      // A component depends on the declaring types of inherited members too, so
+      // record the whole supertype chain it was resolved against.
+      for (IType supertype : supertypes) {
+        ComponentTypeDependencies.recordType(supertype);
+      }
+      return supertypes;
     }
     catch (JavaModelException e) {
       clearCacheForType(type);
@@ -132,7 +139,13 @@ public class TypeCache {
 
   public List<IType> getSubtypesOfInProject(IType type, IJavaProject project) throws JavaModelException {
     try {
-      return getTypeCacheEntry(type).getSubtypesInProject(project);
+      List<IType> subtypes = getTypeCacheEntry(type).getSubtypesInProject(project);
+      // Subclass scanning (WOApplication/WOSession/WODirectAction) means a change
+      // to a subtype can affect the result, so record them as dependencies too.
+      for (IType subtype : subtypes) {
+        ComponentTypeDependencies.recordType(subtype);
+      }
+      return subtypes;
     }
     catch (JavaModelException e) {
       clearCacheForType(type);
@@ -153,7 +166,11 @@ public class TypeCache {
 
     public TypeCacheEntry(IType type) throws JavaModelException {
       _type = type;
-      //_resource = _type.getUnderlyingResource();
+      // The resource lets clearCacheForResource/clearCacheForProject find this
+      // entry. getResource() (unlike getUnderlyingResource()) does no model I/O
+      // and returns null for binary types, which is exactly what we want -- only
+      // source types in a project need invalidating when that project changes.
+      _resource = _type.getResource();
       _nextTypeCache = new HashMap<String, IType>();
       _bindingValueAccessorKeys = new HashMap<String, List<BindingValueKey>>();
       _bindingValueMutatorKeys = new HashMap<String, List<BindingValueKey>>();

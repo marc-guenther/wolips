@@ -87,3 +87,25 @@ the fixes:
 `GenericKeyPaths` is the most interesting target: before fix #2 every lookup on
 the generic repositories missed the cache and re-ran the reflection scan; after
 it, warm passes are almost all hits.
+
+## Testing dependency-driven revalidation
+
+The model classes are shared by many components, which makes this project a good
+way to confirm that a Java change revalidates every component reachable through a
+key path -- not just the component whose own class changed:
+
+- Edit `model/Person.java` (e.g. rename or remove `name()`), then build. Every
+  component that binds `person.*` should be revalidated and update its markers:
+  `Main`, `ValidKeyPaths`, `InvalidKeyPaths`, `CollectionKeyPaths`,
+  `KvcAndComponentKeyPaths`, `HelperFunctions`, `OgnlBindings`,
+  `DeprecatedBindings`, `UsesApiValidated`, `InlineBindings`, and
+  `StructuralProblems` -- even though none of *their* classes changed.
+- Edit `model/Address.java` -- `ValidKeyPaths` (and any other component binding
+  `*.address.*`) should revalidate.
+- Edit `model/Person.java`'s superclass-supplied behavior or `Repository.java` --
+  `GenericKeyPaths` should revalidate, since its key paths resolve through those
+  types.
+
+Components are only tracked once they have been validated at least since the last
+full build, so do a full build (or open the components once) first; after that,
+incremental Java edits drive the targeted revalidation.

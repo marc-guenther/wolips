@@ -56,6 +56,7 @@ import org.eclipse.core.resources.IContainer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.resources.IncrementalProjectBuilder;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -69,6 +70,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.objectstyle.wolips.bindings.Activator;
 import org.objectstyle.wolips.bindings.preferences.PreferenceConstants;
+import org.objectstyle.wolips.bindings.wod.ComponentTypeDependencies;
 import org.objectstyle.wolips.core.resources.builder.AbstractFullAndIncrementalBuilder;
 import org.objectstyle.wolips.core.resources.types.SuperTypeHierarchyCache;
 import org.objectstyle.wolips.core.resources.types.WOHierarchyScope;
@@ -137,6 +139,7 @@ public class WodBuilder extends AbstractFullAndIncrementalBuilder {
 			WodParserCache.getModelGroupCache().clearCacheForProject(project);
 			WodParserCache.getTypeCache().clearCacheForProject(project);
 			WOHierarchyScope.clearCacheForProject(project);
+			ComponentTypeDependencies.clearForProject(project.getFullPath().toString());
 		}
 		return false;
 	}
@@ -155,6 +158,14 @@ public class WodBuilder extends AbstractFullAndIncrementalBuilder {
 				if (_buildKind == IncrementalProjectBuilder.INCREMENTAL_BUILD || _buildKind == IncrementalProjectBuilder.AUTO_BUILD) {
 					ICompilationUnit compilationUnit = JavaCore.createCompilationUnitFrom((IFile) resource);
 					if (compilationUnit != null) {
+						// A changed Java type can affect any component whose key paths pass through
+						// it -- including through inheritance, since cached binding-key lists aggregate
+						// inherited members -- so invalidate the project's cached type info once for
+						// this build before revalidating anything.
+						clearTypeCacheOnce(resource.getProject(), buildCache);
+						Set<String> revalidatedComponents = revalidatedComponents(buildCache);
+
+						// 1. If the changed class is itself a component, revalidate its own template.
 						IType type = compilationUnit.findPrimaryType();
 						if (type != null) {
 							IType woElementType = type.getJavaProject().findType("com.webobjects.appserver.WOElement", progressMonitor);
@@ -163,20 +174,59 @@ public class WodBuilder extends AbstractFullAndIncrementalBuilder {
 								if (typeHierarchy != null && typeHierarchy.contains(woElementType)) {
 									LocalizedComponentsLocateResult results = LocatePlugin.getDefault().getLocalizedComponentsLocateResult(resource);
 									IFile wodFile = results.getFirstWodFile();
-									if (wodFile != null && wodFile.exists()) {
+									if (wodFile != null && wodFile.exists() && revalidatedComponents.add(wodFile.getParent().getFullPath().toString())) {
 										wodFile.touch(progressMonitor);
 										validateWodFile(wodFile, progressMonitor);
 									}
 								}
 							}
 						}
+
+						// 2. Revalidate every other component whose key paths resolve through a type
+						// declared in this file (i.e. reached via a binding key path), not just the
+						// component whose own class changed.
+						for (IType changedType : compilationUnit.getAllTypes()) {
+							for (String componentKey : ComponentTypeDependencies.componentsDependentOn(changedType.getFullyQualifiedName())) {
+								if (revalidatedComponents.add(componentKey)) {
+									revalidateComponent(componentKey, progressMonitor);
+								}
+							}
+						}
 					}
 				}
-				// touchRelatedResources(_resource, _progressMonitor, _buildCache);
 			}
 			catch (Throwable t) {
 				Activator.getDefault().log(t);
 			}
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	protected void clearTypeCacheOnce(IProject project, Map buildCache) {
+		if (buildCache.get("typeCacheCleared") == null) {
+			WodParserCache.getTypeCache().clearCacheForProject(project);
+			buildCache.put("typeCacheCleared", Boolean.TRUE);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	protected Set<String> revalidatedComponents(Map buildCache) {
+		Set<String> revalidatedComponents = (Set<String>) buildCache.get("revalidatedComponents");
+		if (revalidatedComponents == null) {
+			revalidatedComponents = new HashSet<String>();
+			buildCache.put("revalidatedComponents", revalidatedComponents);
+		}
+		return revalidatedComponents;
+	}
+
+	protected void revalidateComponent(String componentKey, IProgressMonitor progressMonitor) {
+		IResource component = ResourcesPlugin.getWorkspace().getRoot().findMember(componentKey);
+		if (component == null || !component.exists()) {
+			// the component was deleted; drop it from the dependency index
+			ComponentTypeDependencies.removeComponent(componentKey);
+		}
+		else {
+			validateWodFile(component, progressMonitor);
 		}
 	}
 

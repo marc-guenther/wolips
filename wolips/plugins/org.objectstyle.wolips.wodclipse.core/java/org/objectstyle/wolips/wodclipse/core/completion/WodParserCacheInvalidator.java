@@ -14,11 +14,10 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.swt.widgets.Display;
 import org.objectstyle.wolips.bindings.Activator;
+import org.objectstyle.wolips.bindings.wod.ComponentTypeDependencies;
 
 public class WodParserCacheInvalidator implements IResourceChangeListener, IResourceDeltaVisitor {
   public void resourceChanged(IResourceChangeEvent event) {
@@ -46,23 +45,18 @@ public class WodParserCacheInvalidator implements IResourceChangeListener, IReso
           // IGNORE
         }
         else if (delta.getKind() == IResourceDelta.REMOVED) {
-          WodParserCache.getTypeCache().clearCacheForResource(resource);
+          // A removed type can change its former subtypes' results, so clear the project.
+          WodParserCache.getTypeCache().clearCacheForProject(resource.getProject());
         }
         else if (delta.getKind() == IResourceDelta.CHANGED) {
           IJavaElement javaElement = JavaCore.create(file);
           if (javaElement instanceof ICompilationUnit) {
-            try {
-              IJavaProject javaProject = javaElement.getJavaProject();
-              if (javaProject != null && javaProject.isOnClasspath(javaElement)) {
-                IType[] types = ((ICompilationUnit) javaElement).getAllTypes();
-                for (IType type : types) {
-                  WodParserCache.getTypeCache().clearCacheForType(type);
-                }
-              }
-            }
-            catch (JavaModelException e) {
-              //e.printStackTrace(System.out);
-              Activator.getDefault().log("Failed to clear caches for " + resource + ".", e);
+            IJavaProject javaProject = javaElement.getJavaProject();
+            if (javaProject != null && javaProject.isOnClasspath(javaElement)) {
+              // Cached binding-key lists aggregate inherited members, so a change to
+              // one type can invalidate the cached results of all its subtypes; clear
+              // the whole project's type cache rather than just the changed type.
+              WodParserCache.getTypeCache().clearCacheForProject(javaProject.getProject());
             }
           }
         }
@@ -109,6 +103,7 @@ public class WodParserCacheInvalidator implements IResourceChangeListener, IReso
         }
         else if (delta.getKind() == IResourceDelta.REMOVED) {
         	WodParserCache.invalidateResource(file.getParent());
+        	ComponentTypeDependencies.removeComponent(file.getParent().getFullPath().toString());
         }
         else if (delta.getKind() == IResourceDelta.CHANGED && ((delta.getFlags() & IResourceDelta.ENCODING) != 0)) {
         	WodParserCache.invalidateResource(file.getParent());
