@@ -61,7 +61,12 @@ public final class ValidationProfiler {
   public static final String FIND_ELEMENT_TYPE_SEARCH = "findElementType.search";
 
   // --- fix #4: preference re-reads per element/binding ---
-  public static final String PREFERENCE_READ = "preferenceRead";
+  // PREFERENCE_READ counts actual preference-store reads (cache misses);
+  // PREFERENCE_CACHE_HIT counts reads served from the memoized cache. Before
+  // the fix every logical read hit the store; after it, reads collapse to one
+  // per distinct key until a preference changes.
+  public static final String PREFERENCE_READ = "preferenceStoreRead";
+  public static final String PREFERENCE_CACHE_HIT = "preferenceCacheHit";
 
   private static final class Counter {
     final LongAdder count = new LongAdder();
