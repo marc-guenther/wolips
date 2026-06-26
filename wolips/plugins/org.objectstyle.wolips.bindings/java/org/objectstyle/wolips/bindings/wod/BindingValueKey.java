@@ -31,6 +31,17 @@ public class BindingValueKey implements Comparable<BindingValueKey> {
     _cache = cache;
   }
 
+  /**
+   * Returns a copy that shares this key's immutable identity (name, declaring
+   * type, member) but carries no resolution state. The next type ({@link #getNextType(BindingValueKey)})
+   * and parent are resolved lazily against the keypath context a key is used
+   * in, and that resolution is context-dependent for generic members, so cached
+   * keys must be copied before use rather than shared across keypaths.
+   */
+  public BindingValueKey copy() {
+    return new BindingValueKey(_bindingName, _bindingDeclaringType, _bindingMember, _javaProject, _cache);
+  }
+
   @Override
   public boolean equals(Object o) {
     return o instanceof BindingValueKey && compareTo((BindingValueKey) o) == 0;

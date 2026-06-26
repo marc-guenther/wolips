@@ -166,28 +166,20 @@ public class TypeCache {
     public List<BindingValueKey> getBindingValueAccessorKeys(IJavaProject javaProject, String name) throws JavaModelException {
       synchronized (_bindingValueAccessorKeys) {
         List<BindingValueKey> bindingValueAccessorKeys = _bindingValueAccessorKeys.get(name);
-        //System.out.println("TypeCacheEntry.getBindingValueAccessorKeys: " + name + ": " + bindingValueAccessorKeys);
         ValidationProfiler.count(ValidationProfiler.ACCESSOR_KEYS);
         if (bindingValueAccessorKeys == null) {
           ValidationProfiler.count(ValidationProfiler.ACCESSOR_KEYS_MISS);
-          //System.out.println("TypeCache.getBindingValueAccessorKeys: MISS " + type.getElementName() + ": " + name);
           bindingValueAccessorKeys = getBindingKeys(javaProject, name, BindingReflectionUtils.ACCESSORS_OR_VOID);
-          // MS: Don't cache this for now -- I don't know how many end up in here and how long they
-          // hang around, but I think the answer is "a lot" and "for a long time".  However, it's a huge performance win.
-
-          // Q: Don't cache results from types with generic type parameters
-          if (_type.getTypeParameters().length == 0 || bindingValueAccessorKeys.size() == 0) {
-            _bindingValueAccessorKeys.put(name, bindingValueAccessorKeys);
-          } else {
-            ValidationProfiler.count(ValidationProfiler.ACCESSOR_KEYS_GENERIC_SKIP);
-            //System.out.println("TypeCacheEntry.getBindingValueMutatorKeys: not caching " + _type.getElementName() + ": " + name);
-          }
+          // Cache the result of the (expensive) reflection scan for every type,
+          // generic or not. The scan is context-free; only a key's next-type
+          // resolution is context-dependent, and that is kept out of the cache
+          // by handing out copies below (see copyOf / BindingValueKey.copy).
+          _bindingValueAccessorKeys.put(name, bindingValueAccessorKeys);
         }
         else {
           ValidationProfiler.count(ValidationProfiler.ACCESSOR_KEYS_HIT);
-          //System.out.println("TypeCache.getBindingValueAccessorKeys: HIT  " + _type.getElementName() + ": " + name);
         }
-        return bindingValueAccessorKeys;
+        return copyOf(bindingValueAccessorKeys);
       }
     }
 
@@ -197,25 +189,30 @@ public class TypeCache {
         ValidationProfiler.count(ValidationProfiler.MUTATOR_KEYS);
         if (bindingValueMutatorKeys == null) {
           ValidationProfiler.count(ValidationProfiler.MUTATOR_KEYS_MISS);
-          //System.out.println("TypeCache.getBindingValueMutatorKeys: MISS " + type.getElementName() + ": " + name);
           bindingValueMutatorKeys = getBindingKeys(javaProject, name, BindingReflectionUtils.MUTATORS_ONLY);
-          // MS: Don't cache this for now -- I don't know how many end up in here and how long they
-          // hang around, but I think the answer is "a lot" and "for a long time".  However, it's a huge performance win.
-
-          // Q: Don't cache results from types with generic type parameters
-          if (_type.getTypeParameters().length == 0 && bindingValueMutatorKeys.size() > 0) {
-            _bindingValueMutatorKeys.put(name, bindingValueMutatorKeys);
-          } else {
-            ValidationProfiler.count(ValidationProfiler.MUTATOR_KEYS_GENERIC_SKIP);
-            //System.out.println("TypeCacheEntry.getBindingValueMutatorKeys: not caching " + _type.getElementName() + ": " + name);
-          }
+          // See getBindingValueAccessorKeys: cache the scan for all types and
+          // hand out copies so per-keypath resolution state never leaks.
+          _bindingValueMutatorKeys.put(name, bindingValueMutatorKeys);
         }
         else {
           ValidationProfiler.count(ValidationProfiler.MUTATOR_KEYS_HIT);
-          //System.out.println("TypeCache.getBindingValueMutatorKeys: HIT  " + _type.getElementName() + ": " + name);
         }
-        return bindingValueMutatorKeys;
+        return copyOf(bindingValueMutatorKeys);
       }
+    }
+
+    /**
+     * Returns a fresh list of copies of the cached keys. Callers (the keypath
+     * walk) resolve next types against their keypath context by mutating the
+     * keys they hold, so each caller must get its own copies; the cached keys
+     * stay pristine and shareable across keypaths and threads.
+     */
+    private List<BindingValueKey> copyOf(List<BindingValueKey> bindingKeys) {
+      List<BindingValueKey> copies = new LinkedList<BindingValueKey>();
+      for (BindingValueKey bindingKey : bindingKeys) {
+        copies.add(bindingKey.copy());
+      }
+      return copies;
     }
 
     private List<BindingValueKey> getBindingKeys(IJavaProject javaProject, String name, int accessorsOrMutators) throws JavaModelException {

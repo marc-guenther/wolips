@@ -42,15 +42,16 @@ public final class ValidationProfiler {
   public static final String GET_TYPE_FOR_NAME_MISS = "getTypeForName.miss";
   public static final String RESOLVE_TYPE = "resolveType";
 
-  // --- fix #2: binding keys are never cached for generic types ---
+  // --- fix #2: binding-key reflection scan, now cached for all types ---
+  // After the fix every (type, name) scan is cached, so for a generic-heavy
+  // component the *.miss counts collapse on warm passes and *.hit dominates;
+  // before the fix generic types missed on every lookup.
   public static final String ACCESSOR_KEYS = "accessorKeys.call";
   public static final String ACCESSOR_KEYS_HIT = "accessorKeys.hit";
   public static final String ACCESSOR_KEYS_MISS = "accessorKeys.miss";
-  public static final String ACCESSOR_KEYS_GENERIC_SKIP = "accessorKeys.genericNotCached";
   public static final String MUTATOR_KEYS = "mutatorKeys.call";
   public static final String MUTATOR_KEYS_HIT = "mutatorKeys.hit";
   public static final String MUTATOR_KEYS_MISS = "mutatorKeys.miss";
-  public static final String MUTATOR_KEYS_GENERIC_SKIP = "mutatorKeys.genericNotCached";
 
   // --- the underlying reflection scan over fields/methods ---
   public static final String GET_BINDING_KEYS = "getBindingKeys";
