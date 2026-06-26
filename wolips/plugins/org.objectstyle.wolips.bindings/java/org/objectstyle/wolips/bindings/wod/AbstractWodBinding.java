@@ -234,6 +234,11 @@ public abstract class AbstractWodBinding implements IWodBinding {
 
       if (!explicitlyValid) {
         int lineNumber = getLineNumber();
+        // Resolve the keypath at most once per binding and share it between the
+        // value-validation checks below and the deprecation check further down.
+        // Resolving a keypath walks the JDT type graph and is by far the most
+        // expensive part of validation, so building it twice doubled that cost.
+        BindingValueKeyPath bindingValueKeyPath = null;
         if (isKeyPath()) {
           boolean checkKeyPath = true;
           
@@ -252,7 +257,7 @@ public abstract class AbstractWodBinding implements IWodBinding {
           }
           
           if (checkKeyPath) {
-            BindingValueKeyPath bindingValueKeyPath = new BindingValueKeyPath(bindingValue, javaFileType, javaProject, cache);
+            bindingValueKeyPath = new BindingValueKeyPath(bindingValue, javaFileType, javaProject, cache);
             // NTS: Technically these need to be related to every java file name in the key path
             if (!bindingValueKeyPath.isValid() || (bindingValueKeyPath.isWOComponent() && !PreferenceConstants.IGNORE.equals(missingComponentSeverity)) || (bindingValueKeyPath.isNSKeyValueCoding() && !PreferenceConstants.IGNORE.equals(missingNSKVCSeverity) && !bindingValueKeyPath.isNSCollection())) {
             	boolean warning;
@@ -369,7 +374,11 @@ public abstract class AbstractWodBinding implements IWodBinding {
         ValidationProfiler.count(ValidationProfiler.PREFERENCE_READ);
         String deprecationSeverity = Activator.getDefault().getPluginPreferences().getString(PreferenceConstants.DEPRECATED_BINDING_SEVERITY_KEY);
         if (!PreferenceConstants.IGNORE.equals(deprecationSeverity)) {
-          BindingValueKeyPath bindingValueKeyPath = new BindingValueKeyPath(bindingValue, javaFileType, javaProject, cache);
+          // Reuse the keypath resolved above when it was built; only the "var"
+          // value-namespace and non-keypath value cases leave it null here.
+          if (bindingValueKeyPath == null) {
+            bindingValueKeyPath = new BindingValueKeyPath(bindingValue, javaFileType, javaProject, cache);
+          }
           if (bindingValueKeyPath.isValid() && bindingValueKeyPath.getBindingKeys() != null) {
             for (BindingValueKey bindingKey : bindingValueKeyPath.getBindingKeys()) {
               if (BindingReflectionUtils.bindingPointsToDeprecatedValue(bindingKey)) {
